@@ -12,6 +12,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -20,6 +21,7 @@ type Server struct {
 	PG_CLIENT   *pgxpool.Pool
 	RDS_CLIENT  *redis.Client
 	ES_CLIENT   *elasticsearch.Client
+	N4J_CLIENT   neo4j.Driver
 	ROUTER      *gin.Engine
 	HTTP_SERVER *http.Server
 }
@@ -52,6 +54,11 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	n4jClient, err := database.NewNeo4jClient(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	router := gin.Default()
 
 	httpServer := &http.Server{
@@ -67,6 +74,7 @@ func NewServer() (*Server, error) {
 		PG_CLIENT:   pgClient,
 		RDS_CLIENT:  rdsClient,
 		ES_CLIENT:   esClient,
+		N4J_CLIENT:  n4jClient,
 		ROUTER:      router,
 		HTTP_SERVER: httpServer,
 	}, nil
@@ -89,5 +97,6 @@ func (s *Server) Shutdown() {
 	s.ES_CLIENT.Close(ctx)
 	s.PG_CLIENT.Close()
 	s.RDS_CLIENT.Close()
+	s.N4J_CLIENT.Close(ctx)
 
 }
