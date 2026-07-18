@@ -37,7 +37,7 @@ type AuthAccount struct {
 type RefreshToken struct {
 	BaseModel
 	UserID    uuid.UUID
-	TokenHash string
+	TokenHash []byte
 	ExpiresAt time.Time
 	Revoked   bool
 }

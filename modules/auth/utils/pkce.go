@@ -26,7 +26,7 @@ func GenerateCodeChallenge(verifier string) string {
 }
 
 
-func GenerateState() (string, error) {
+func GenerateCodeState() (string, error) {
 
 	bytes := make([]byte, 32)
 

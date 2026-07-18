@@ -1,4 +1,4 @@
-package auth
+package pkg
 
 import (
 	"context"
@@ -14,11 +14,11 @@ type GoogleProvider struct {
 }
 
 type GoogleUser struct {
-	Subject         string `json:"sub"`
-	Email           string `json:"email"`
-	Name            string `json:"name"`
-	Picture         string `json:"picture"`
-	EmailVerified   bool   `json:"email_verified"`
+    Subject         string `json:"sub"`
+    Email           string `json:"email"`
+    FullName        string `json:"name"`
+    AvatarURL       string `json:"picture"`
+    EmailVerified   bool   `json:"email_verified"`
 }
 
 func NewGoogleProvider(ctx context.Context, clientID string, clientSecret string, redirectURL string) (*GoogleProvider, error) {

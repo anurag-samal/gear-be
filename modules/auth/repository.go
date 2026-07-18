@@ -2,22 +2,19 @@ package auth
 
 import (
 	"context"
+	"github/anurag/altar-be/system/database"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
 
-type AuthRepository struct {
-	db *pgxpool.Pool
-}
+type AuthRepository struct{}
 
-func NewRepository(db *pgxpool.Pool) *AuthRepository {
-	return &AuthRepository{
-		db: db,
-	}
+func NewRepository() *AuthRepository {
+	return &AuthRepository{}
 }
 
 // Users
-func (r *AuthRepository) CreateUser(ctx context.Context, user *User) error {
+func (r *AuthRepository) CreateUser(ctx context.Context, db database.DBTX, user *User) error {
 	query := `INSERT INTO users
 			(
 				id,
@@ -26,12 +23,12 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *User) error {
 				full_name,
 				avatar_url,
 				is_email_verified,
-				last_login_at,
+				last_login_at
 			)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
 			`
 
-	_, err := r.db.Exec(ctx, query,
+	_, err := db.Exec(ctx, query,
 		user.ID,
 		user.OrganizationID,
 		user.Email,
@@ -43,7 +40,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *User) error {
 	return err
 }
 
-func (r *AuthRepository) FindUserByEmail(ctx context.Context, email string) (*User, error) {
+func (r *AuthRepository) FindUserByEmail(ctx context.Context, db database.DBTX, email string) (*User, error) {
 	query := `SELECT
 				id,
 				organization_id,
@@ -59,7 +56,7 @@ func (r *AuthRepository) FindUserByEmail(ctx context.Context, email string) (*Us
 
 	user := &User{}
 
-	err := r.db.QueryRow(ctx, query, email).Scan(
+	err := db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.OrganizationID,
 		&user.Email,
@@ -70,6 +67,10 @@ func (r *AuthRepository) FindUserByEmail(ctx context.Context, email string) (*Us
 		&user.CreatedAt,
 		&user.UpdatedAt)
 
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -78,28 +79,70 @@ func (r *AuthRepository) FindUserByEmail(ctx context.Context, email string) (*Us
 
 }
 
-func (r *AuthRepository) UpdateLastLogin(ctx context.Context, userID uuid.UUID) error {
+func (r *AuthRepository) FindUserByID(ctx context.Context, db database.DBTX, userID uuid.UUID) (*User, error) {
+
+	query := `
+		SELECT
+			id,
+			organization_id,
+			email,
+			full_name,
+			avatar_url,
+			is_email_verified,
+			last_login_at,
+			created_at,
+			updated_at
+		FROM users
+		WHERE id = $1
+	`
+
+	user := &User{}
+
+	err := db.QueryRow(ctx, query, userID).Scan(
+		&user.ID,
+		&user.OrganizationID,
+		&user.Email,
+		&user.FullName,
+		&user.AvatarURL,
+		&user.IsEmailVerified,
+		&user.LastLoginAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *AuthRepository) UpdateLastLoginAt(ctx context.Context, db database.DBTX, userID uuid.UUID) error {
 	query := `UPDATE users
 				SET
-				last_login_at = NOW()
+				last_login_at = NOW(),
 				updated_At = NOW()
 			WHERE id = $1`
 
-	_, err := r.db.Exec(ctx, query, userID)
+	_, err := db.Exec(ctx, query, userID)
 	return err
 }
 
 // User Credentials
-func (r *AuthRepository) CreateUserCredential(ctx context.Context, credential *UserCredential) error {
-	query := `INSERT INTO user_crendentials
+func (r *AuthRepository) CreateUserCredential(ctx context.Context, db database.DBTX, credential *UserCredential) error {
+	query := `INSERT INTO user_credentials
 			(
 				user_id,
 				password_hash
 			)
-			VALUES ($1 $2)
+			VALUES ($1, $2)
 			`
 
-	_, err := r.db.Exec(ctx, query,
+	_, err := db.Exec(ctx, query,
 		credential.UserID,
 		credential.PasswordHash,
 	)
@@ -107,7 +150,7 @@ func (r *AuthRepository) CreateUserCredential(ctx context.Context, credential *U
 	return err
 }
 
-func (r *AuthRepository) FindUserCredential(ctx context.Context, userID uuid.UUID) (*UserCredential, error) {
+func (r *AuthRepository) FindUserCredential(ctx context.Context, db database.DBTX, userID uuid.UUID) (*UserCredential, error) {
 	query := `SELECT
 				user_id,
 				password_hash,
@@ -118,11 +161,15 @@ func (r *AuthRepository) FindUserCredential(ctx context.Context, userID uuid.UUI
 
 	credential := &UserCredential{}
 
-	err := r.db.QueryRow(ctx, query, userID).Scan(
+	err := db.QueryRow(ctx, query, userID).Scan(
 		&credential.UserID,
 		&credential.PasswordHash,
 		&credential.CreatedAt,
 	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
 
 	if err != nil {
 		return nil, err
@@ -132,7 +179,7 @@ func (r *AuthRepository) FindUserCredential(ctx context.Context, userID uuid.UUI
 }
 
 // OAuth Accounts
-func (r *AuthRepository) CreateAuthAccount(ctx context.Context, account *AuthAccount) error {
+func (r *AuthRepository) CreateAuthAccount(ctx context.Context, db database.DBTX, account *AuthAccount) error {
 	query := `INSERT INTO auth_accounts
 			(
 				id,
@@ -143,7 +190,7 @@ func (r *AuthRepository) CreateAuthAccount(ctx context.Context, account *AuthAcc
 			VALUES ($1, $2, $3, $4)
 			`
 
-	_, err := r.db.Exec(ctx, query,
+	_, err := db.Exec(ctx, query,
 		account.ID,
 		account.UserID,
 		account.Provider,
@@ -153,7 +200,7 @@ func (r *AuthRepository) CreateAuthAccount(ctx context.Context, account *AuthAcc
 	return err
 }
 
-func (r *AuthRepository) FindAuthAccount(ctx context.Context, provider string, providerUserID string) (*AuthAccount, error) {
+func (r *AuthRepository) FindAuthAccount(ctx context.Context, db database.DBTX, provider string, providerUserID string) (*AuthAccount, error) {
 	query := `SELECT
 				id,
 				user_id,
@@ -167,7 +214,7 @@ func (r *AuthRepository) FindAuthAccount(ctx context.Context, provider string, p
 
 	authAccount := &AuthAccount{}
 
-	err := r.db.QueryRow(ctx, query,
+	err := db.QueryRow(ctx, query,
 		provider,
 		providerUserID,
 	).Scan(
@@ -179,6 +226,10 @@ func (r *AuthRepository) FindAuthAccount(ctx context.Context, provider string, p
 		&authAccount.UpdatedAt,
 	)
 
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +238,8 @@ func (r *AuthRepository) FindAuthAccount(ctx context.Context, provider string, p
 }
 
 // Refresh Tokens
-func (r *AuthRepository) CreateRefreshToken(ctx context.Context, token *RefreshToken) error {
-	query := `INSERT INTO refersh_tokens
+func (r *AuthRepository) CreateRefreshToken(ctx context.Context, db database.DBTX, token *RefreshToken) error {
+	query := `INSERT INTO refresh_tokens
 			(
 				id,
 				user_id,
@@ -199,7 +250,7 @@ func (r *AuthRepository) CreateRefreshToken(ctx context.Context, token *RefreshT
 			VALUES ($1, $2, $3, $4, $5)
 			`
 
-	_, err := r.db.Exec(ctx, query,
+	_, err := db.Exec(ctx, query,
 		token.ID,
 		token.UserID,
 		token.TokenHash,
@@ -210,7 +261,7 @@ func (r *AuthRepository) CreateRefreshToken(ctx context.Context, token *RefreshT
 	return err
 }
 
-func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, hash []byte) (*RefreshToken, error) {
+func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, db database.DBTX, hash []byte) (*RefreshToken, error) {
 	query := `SELECT
 				id,
 				user_id,
@@ -225,7 +276,7 @@ func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, hash []byte
 
 	refreshToken := &RefreshToken{}
 
-	err := r.db.QueryRow(ctx, query,
+	err := db.QueryRow(ctx, query,
 		hash).Scan(
 		&refreshToken.ID,
 		&refreshToken.UserID,
@@ -236,6 +287,10 @@ func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, hash []byte
 		&refreshToken.UpdatedAt,
 	)
 
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -243,28 +298,28 @@ func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, hash []byte
 	return refreshToken, nil
 }
 
-func (r *AuthRepository) RevokeRefreshToken(ctx context.Context, hash []byte) error {
-	query := `UPDATE refresh_tokens
-				SET
-				revoked = TRUE,
-				updated_at = NOW()
-				WHERE token_hash = $1
-			`
-
-	_, err := r.db.Exec(ctx, query, hash)
+func (r *AuthRepository) RevokeRefreshToken(ctx context.Context, db database.DBTX, id uuid.UUID) error {
+	query := `
+		UPDATE refresh_tokens
+		SET
+			revoked = TRUE,
+			updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := db.Exec(ctx, query, id)
 
 	return err
 }
 
-func (r *AuthRepository) RevokeAllRefreshTokens(ctx context.Context, userID uuid.UUID) error {
-	query := `UPDATE refersh_tokens
+func (r *AuthRepository) RevokeAllRefreshTokens(ctx context.Context, db database.DBTX, userID uuid.UUID) error {
+	query := `UPDATE refresh_tokens
 				SET
 				revoked = TRUE,
 				updated_at = NOW()
 				WHERE user_id = $1 AND revoked = FALSE
 			`
 
-	_, err := r.db.Exec(ctx, query, userID)
+	_, err := db.Exec(ctx, query, userID)
 
 	return err
 }

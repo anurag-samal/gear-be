@@ -1,4 +1,4 @@
-package auth
+package pkg
 
 import (
 	"crypto/rand"
@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github/anurag/altar-be/modules/auth/utils"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -31,13 +33,13 @@ type TokenPair struct {
 func NewJWTManager(secret string) (*JWTManager, error) {
 
 	if secret == "" {
-		return nil, errors.New("JWT-SECRET is empty")
+		return nil, errors.New("jwt secret is empty")
 	}
 
 	return &JWTManager{
 		Secret: []byte(secret),
-		Issuer: JwT_ISSUER,
-		AccessTokenTTL: JWT_ACCESS_TOKEN_TTL,
+		Issuer: auth.JWT_ISSUER,
+		AccessTokenTTL: auth.JWT_ACCESS_TOKEN_TTL,
 	}, nil
 }
 
