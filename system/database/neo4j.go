@@ -1,27 +1,22 @@
 package database
 
 import (
-    "context"
-    "fmt"
-    "github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	"context"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	"github/anurag/altar-be/system/config"
 )
 
-func main() {
-    ctx := context.Background()
-    dbUri := "neo4j+s://8c3b2865.databases.neo4j.io"
-    dbUser := "8c3b2865"
-    dbPassword := "<password>"
-    driver, err := neo4j.NewDriver(
-        dbUri,
-        neo4j.BasicAuth(dbUser, dbPassword, ""))
-    if err != nil {
-        panic(err)
-    }
-    defer driver.Close(ctx)
+func NewNeo4jClient(ctx context.Context, cfg *config.Config) (neo4j.Driver, error) {
 
-    err = driver.VerifyConnectivity(ctx)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("Connection established.")
+	driver, err := neo4j.NewDriver(cfg.N4J_URL, neo4j.BasicAuth(cfg.N4J_USER, cfg.N4J_PASSWORD, ""))
+	if err != nil {
+		return nil, err
+	}
+	defer driver.Close(ctx)
+
+	err = driver.VerifyConnectivity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return driver, nil
 }

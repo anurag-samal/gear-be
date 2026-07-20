@@ -2,16 +2,17 @@ package server
 
 import (
 	"context"
-	"github/anurag/altar-be/modules/auth"
 	"github/anurag/altar-be/system/config"
 	"github/anurag/altar-be/system/constants"
 	"github/anurag/altar-be/system/database"
+	pkg "github/anurag/altar-be/system/packages"
 	"github/anurag/altar-be/system/search"
 	"net/http"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -20,8 +21,11 @@ type Server struct {
 	PG_CLIENT   *pgxpool.Pool
 	RDS_CLIENT  *redis.Client
 	ES_CLIENT   *elasticsearch.Client
+	N4J_CLIENT  neo4j.Driver
 	ROUTER      *gin.Engine
 	HTTP_SERVER *http.Server
+	JWT_MANAGER *pkg.JWTManager
+	GOOGLE_PROVIDER *pkg.GoogleProvider
 }
 
 func NewServer() (*Server, error) {
@@ -52,6 +56,21 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	n4jClient, err := database.NewNeo4jClient(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	jwtManager, err := pkg.NewJWTManager(cfg.JWT_SECRET)
+	if err != nil{
+		return nil,err
+	}
+
+	googleProvider, err := pkg.NewGoogleProvider(ctx,cfg.GOOGLE_CLIENT_ID,cfg.GOOGLE_CLIENT_SECRET,cfg.GOOGLE_REDIRECT_URL)
+	if err != nil{
+		return nil,err
+	}
+
 	router := gin.Default()
 
 	httpServer := &http.Server{
@@ -67,17 +86,17 @@ func NewServer() (*Server, error) {
 		PG_CLIENT:   pgClient,
 		RDS_CLIENT:  rdsClient,
 		ES_CLIENT:   esClient,
+		N4J_CLIENT:  n4jClient,
 		ROUTER:      router,
 		HTTP_SERVER: httpServer,
+		JWT_MANAGER: jwtManager,
+		GOOGLE_PROVIDER: googleProvider,
 	}, nil
 }
 
-func (s *Server) RegisterRoutes(){
-	api := s.ROUTER.Group("/api/v1")
-	auth.RegisterAuthRoutes(api.Group("/auth"),authHandler)
-}
 
 func (s *Server) Run() error {
+	s.BuildModules()
 	return s.HTTP_SERVER.ListenAndServe()
 }
 
@@ -89,5 +108,6 @@ func (s *Server) Shutdown() {
 	s.ES_CLIENT.Close(ctx)
 	s.PG_CLIENT.Close()
 	s.RDS_CLIENT.Close()
+	s.N4J_CLIENT.Close(ctx)
 
 }
