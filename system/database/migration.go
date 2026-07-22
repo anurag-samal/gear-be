@@ -2,8 +2,10 @@ package database
 
 import (
 	"database/sql"
-	"github/anurag/altar-be/system/config"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github/anurag/altar-be/system/config"
 )
 
 func RunMigrations(cfg *config.Config) error {

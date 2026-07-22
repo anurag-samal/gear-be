@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 )
 
 const migrationsDir = "system/migrations"
@@ -47,7 +46,6 @@ func generate() string {
 	out.WriteString("-- ============================================================\n")
 	out.WriteString("-- Gear Database Schema\n")
 	out.WriteString("-- Auto-generated from system/migrations/ — do not edit directly\n")
-	out.WriteString(fmt.Sprintf("-- Generated: %s\n", time.Now().UTC().Format(time.RFC3339)))
 	out.WriteString("-- ============================================================\n\n")
 
 	for _, entry := range entries {
