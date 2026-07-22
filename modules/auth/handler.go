@@ -96,7 +96,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 
 	c.Redirect(
 		http.StatusTemporaryRedirect,
-		h.config.FRONTEND_URL+"/dashboard",
+		h.config.FrontendURL+"/dashboard",
 	)
 }
 
@@ -165,7 +165,7 @@ func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
 		int(auth.JWT_REFRESH_TOKEN_TTL.Seconds()),
 		"/auth",
 		"",
-		h.config.COOKIE_SECURE,
+		h.config.CookieSecure,
 		true,
 	)
 }
@@ -178,7 +178,7 @@ func (h *AuthHandler) clearRefreshCookie(c *gin.Context) {
 		-1,
 		"/auth",
 		"",
-		h.config.COOKIE_SECURE,
+		h.config.CookieSecure,
 		true,
 	)
 }

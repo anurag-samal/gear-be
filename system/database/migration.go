@@ -7,7 +7,7 @@ import (
 )
 
 func RunMigrations(cfg *config.Config) error {
-	db, err := sql.Open("pgx", cfg.PG_URL)
+	db, err := sql.Open("pgx", cfg.Database.PostgresURL)
 	if err != nil {
 		return err
 	}

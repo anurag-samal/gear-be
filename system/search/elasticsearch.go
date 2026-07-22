@@ -1,20 +1,27 @@
 package search
 
 import (
-	"github/anurag/altar-be/system/config"
+	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
+	"github/anurag/altar-be/system/config"
 )
 
 func NewElasticSearchClient(cfg *config.Config) (*elasticsearch.Client, error) {
-	elasticConfig := elasticsearch.Config{
-		Addresses: []string{
-			cfg.ES_URL,
-		},
+	esClient, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{cfg.Elasticsearch.URL},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("elasticsearch client: %w", err)
 	}
 
-	esClient, err := elasticsearch.NewClient(elasticConfig)
+	res, err := esClient.Ping()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("elasticsearch ping: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("elasticsearch ping: %s", res.String())
 	}
 
 	return esClient, nil

@@ -1,23 +1,39 @@
 package main
 
 import (
-	"github/anurag/altar-be/system/server"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/joho/godotenv"
+
+	"github/anurag/altar-be/system/constants"
+	"github/anurag/altar-be/system/logger"
+	"github/anurag/altar-be/system/server"
 )
 
 func main() {
+	_ = godotenv.Load()
+
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+	}
+
+	logger.InitDefault(env)
+
 	srv, err := server.NewServer()
 	if err != nil {
-		log.Fatal("Error in server configuration: ", err)
+		slog.Error("server initialization failed", "error", err)
+		os.Exit(1)
 	}
 
 	go func() {
 		if err := srv.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Error running server: ", err)
+			slog.Error("server runtime error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -25,6 +41,5 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
-	srv.Shutdown()
-
+	srv.ShutdownWithTimeout(constants.FORCE_SHUTDOWN_TIMEOUT)
 }
